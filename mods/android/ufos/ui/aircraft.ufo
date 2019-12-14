@@ -1,0 +1,286 @@
+// =================================
+// INTERFACE FOR ALL AIRCRAFT MENUS
+// =================================
+
+component aircraft_teammember extends panel {
+	{
+		size		"260 50"
+	}
+
+	data id {
+		string		""
+	}
+
+	string name {
+		pos			"0 0"
+		color		"0 .78 0 1"
+		size		"230 50"
+		contentalign	ALIGN_CL
+		onClick {
+			cmd "aircraft_soldierlist_select <node:parent.id@integer>;"
+		}
+	}
+
+	checkbox_green selected {
+		tooltip		"_Add/remove soldier to the team"
+		pos			"210 0"
+		size		"50 50"
+		padding		17
+
+		onChange {
+			cmd "ui_team_assign_ucn <node:parent.id@integer>; ui_team_fill \"<node:parent.id@string>\"; aircraft_soldierlist_select <node:parent.id@integer>;"
+		}
+	}
+}
+
+/**
+ * @brief Define interface shared by all aircraft menus.
+ */
+window iaircraft
+{
+	/** @todo Remove me */
+	{ } // empty properties to fix parsing problem with "image" token (behaviour or property?)
+
+	// ==================
+	// background
+	// ==================
+
+	image background {
+		src	"background/base_bg"
+	}
+
+	panel model_background {
+		pos		"461 88"
+		size	"563 298"
+		background	"ui/panel_grey_green_large"
+	}
+
+	panel aircraftlist_background1 {
+		pos		"19 88"
+		size	"433 298"
+		background	"ui/panel_grey_green"
+	}
+
+	panel horizontalline {
+		pos		"30 140"
+		size	"409 4"
+		bgcolor	"0.03 0.42 0.03 1"
+	}
+
+	// ==================
+	// base info
+	// ==================
+
+	cmpBaseHeader baseHeader {
+	}
+
+	panel tab_background {
+		pos		"24 386"
+		size	"986 56"
+		background	"ui/panel_tab"
+	}
+
+	tab aircraft_navigation {
+		{
+			pos		"47 396"
+			size	"938 39"
+			cvar	*cvar:mn_aircrafttab
+			onChange {
+				cmd "ui_pop; ui_push <cvar:mn_aircrafttab>;"
+			}
+		}
+
+		option description {
+			label	"_Description"
+			value	"aircraft"
+			icon "icons/tab_information"
+		}
+		option pilot {
+			label	"_Pilots"
+			value	"aircraft_pilots"
+			icon	"icons/smallhead_pilot"
+		}
+		option equip {
+			label	"_Equipment"
+			value	"aircraft_equip"
+			icon	"icons/tab_air_equipment"
+		}
+/*		option tank {
+			label	"_Tanks"
+			value	"foobar"
+			disabled	true
+		}
+*/
+		option soldier {
+			label	"_Soldiers"
+			value	"team"
+			icon	"icons/smallhead_soldier"
+		}
+/*		option soldier_equipment {
+			label	"_Soldier equipment"
+			value	"foobar"
+			disabled	true
+		}
+*/
+	}
+
+	// ==================
+	// aircraft list
+	// ==================
+
+	textlist aircraft_list
+	{
+		pos			"51 153"
+		size		"350 220"
+		rows		11
+		lineheight	20
+		dataid		TEXT_AIRCRAFT_LIST
+		color	"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		onViewChange {
+			*node:root.aircraft_list_scroll@fullsize = <fullsize>
+			*node:root.aircraft_list_scroll@viewsize = <viewsize>
+			*node:root.aircraft_list_scroll@current = <viewpos>
+		}
+		onClick {
+			cmd "mn_select_aircraft <lineselected>;"	// @note the node autocomplet the command with the selected line
+		}
+	}
+
+	vscrollbar aircraft_list_scroll {
+		image			"ui/scrollbar_v_green"
+		pos				"413 151"
+		height			"220"
+		current			0
+		viewsize		11
+		fullsize		19
+		hidewhenunused	true
+		onChange {
+			*node:root.aircraft_list@viewpos = <current>
+		}
+	}
+
+	textentry aircraft_selected
+	{
+		string		*cvar:mn_aircraftname
+		pos			"46 114"
+		size		"317 21"
+		font		"f_normal_bold"
+		onChange	{ cmd "aircraft_namechange; ui_pop; ui_push aircraft;" }
+	}
+
+	button air_nameedit
+	{
+		tooltip		"_Rename aircraft"
+		icon		"icons/pen"
+		pos			"380 105"
+		size		"35 35"
+		padding		0
+		onClick		{ call *node:root.aircraft_selected@edit }
+	}
+
+	// ==================
+	// aircraft list callback
+	// ==================
+
+	/**
+	 * @brief Callback to update the GUI after an aircraft change
+	 */
+	confunc aircraft_change { }
+
+	/**
+	 * @brief Callback to update the GUI when the aircraft status change
+	 */
+	confunc aircraft_status_change { }
+
+	confunc aircraft_soldierlist_clear {
+		call *node:parent.soldierlist@removeAllChild
+	}
+	confunc aircraft_soldierlist_add {
+		call *node:parent.soldierlist@createChild("member<1>", "aircraft_teammember")
+		*node:parent.soldierlist.member<1>.id@integer = <1>
+		*node:parent.soldierlist.member<1>.id@string = <2>
+		*node:parent.soldierlist.member<1>.name@string = <3>
+		*node:parent.soldierlist.member<1>.selected@current = <4>
+
+		if ( "<5>" ne "" ) {
+			*node:parent.soldierlist.member<1>.selected@disabled = true
+			*node:parent.soldierlist.member<1>.name@tooltip = "<5>"
+			*node:parent.soldierlist.member<1>.selected@tooltip = "<5>"
+		}
+		if ( *node:root.selected@integer < 0 ) {
+			cmd "aircraft_soldierlist_select <1>;"
+			*node:root.selected@integer = <1>
+		}
+	}
+	confunc aircraft_soldierlist_select {
+		if ( *node:root.selected@integer >= 0 ) {
+			*node:parent.soldierlist.member<node:root.selected@integer>.name@color = "0 .78 0 1"
+		}
+		*node:root.selected@integer = <1>
+		if ( *node:root.selected@integer >= 0 ) {
+			*node:parent.soldierlist.member<1>.name@color = "1 1 1 1"
+			cmd "ui_team_select_ucn <node:root.selected@integer>;"
+		}
+	}
+
+	/**
+	 * @brief Reset the cvars for a character.
+	 */
+	confunc reset_character_cvars {
+		/** @todo gui should not manage it -> it should not be here */
+		*cvar:mn_name = ""
+		*cvar:mn_body = ""
+		*cvar:mn_head = ""
+		*cvar:mn_body_skin = ""
+		*cvar:mn_head_skin = ""
+		*cvar:mn_rweapon = ""
+		*cvar:mn_lweapon = ""
+		*cvar:mn_chrmis = ""
+		*cvar:mn_chrkillalien = ""
+		*cvar:mn_chrkillcivilian = ""
+		*cvar:mn_chrkillteam = ""
+		*cvar:mn_chrrank = ""
+		*cvar:mn_chrrank_img = ""
+		*cvar:mn_vpwr = ""
+		*cvar:mn_vpwri = ""
+		*cvar:mn_vspd = ""
+		*cvar:mn_vspdi = ""
+		*cvar:mn_vacc = ""
+		*cvar:mn_vacci = ""
+		*cvar:mn_vmnd = ""
+		*cvar:mn_vmndi = ""
+		*cvar:mn_vcls = ""
+		*cvar:mn_vclsi = ""
+		*cvar:mn_vhvy = ""
+		*cvar:mn_vhvyi = ""
+		*cvar:mn_vass = ""
+		*cvar:mn_vassi = ""
+		*cvar:mn_vsnp = ""
+		*cvar:mn_vsnpi = ""
+		*cvar:mn_vexp = ""
+		*cvar:mn_vexpi = ""
+		*cvar:mn_vhp = ""
+		*cvar:mn_vhpi = ""
+		*cvar:mn_vhpmax = 100 /**< must be greater than mn_vhp */
+		*cvar:mn_tpwr = ""
+		*cvar:mn_tspd = ""
+		*cvar:mn_tacc = ""
+		*cvar:mn_tmnd = ""
+		*cvar:mn_tcls = ""
+		*cvar:mn_thvy = ""
+		*cvar:mn_tass = ""
+		*cvar:mn_tsnp = ""
+		*cvar:mn_texp = ""
+		*cvar:mn_thp = ""
+		*cvar:mn_vpil = ""
+		*cvar:mn_vpili = ""
+		*cvar:mn_tpil = ""
+		*cvar:mn_vtar = ""
+		*cvar:mn_vtari = ""
+		*cvar:mn_ttar = ""
+		*cvar:mn_vevad = ""
+		*cvar:mn_vevadi = ""
+		*cvar:mn_tevad = ""
+	}
+}

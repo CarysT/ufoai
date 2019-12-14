@@ -1,0 +1,716 @@
+#! /bin/sh
+
+ARGS=$*
+
+PROGRAM=ufo
+
+#set -e
+#set -x
+
+echo "" > config.log
+CONFIG_H=config.h
+MAKEFILE_LOCAL=Makefile.local
+
+DEBUG=1
+UNIVERSAL=
+HARD_LINKED_GAME=
+HARD_LINKED_CGAME=1
+PARANOID=
+PROFILING=
+PREFIX=/usr/local
+PKGDATADIR=
+PKGBINDIR=
+PKGLIBDIR=
+LOCALEDIR=
+USE_SIGNALS=1
+MODE=
+CROSS=
+USE_CCACHE=
+STATIC=
+DISABLE_SDL2=
+W2K=
+SSE=
+DISABLE_DEPENDENCY_TRACKING=
+WITH_EMBEDDED_LUA=
+DEFAULT_COMPILER_CC=cc
+DEFAULT_COMPILER_CXX=c++
+
+HOST_OS=`uname | sed -e s/_.*// | tr '[:upper:]' '[:lower:]'`
+TARGET_OS=${HOST_OS}
+
+if [ "${HOST_OS}" = "sunos" ] || [ "${HOST_OS}" = "darwin" ]; then
+	TARGET_ARCH=`uname -p | sed -e s/i.86/i386/`
+else
+	TARGET_ARCH=`uname -m | sed -e s/i.86/i386/`
+fi
+
+add_line_to_makefile_local() {
+	makefile_local_data="${makefile_local_data}"'
+'"$1"
+}
+
+error() {
+	echo $@
+	exit 1
+}
+
+add_to_makefile_local_quote() {
+	VALUE=`get_var $1`
+	if [ -n "$VALUE" ]; then
+		# these are internal make variables and are already set, so don't use ?= here
+		if [ "$1" = "CC" ] || [ "$1" = "CXX" ]; then
+			add_line_to_makefile_local "$1 := \"$VALUE\""
+		else
+			add_line_to_makefile_local "$1 ?= \"$VALUE\""
+		fi
+		[ -n "$2" ] && echo $2
+	else
+		add_line_to_makefile_local "# $1 ?= \"$VALUE\""
+		[ -n "$3" ] && echo $3
+		[ "$4" = "yes" ] && exit 1
+	fi
+}
+
+add_to_makefile_local() {
+	VALUE=`get_var $1`
+	if [ -n "$VALUE" ]; then
+		# these are internal make variables and are already set, so don't use ?= here
+		if [ "$1" = "CC" ] || [ "$1" = "CXX" ]; then
+			add_line_to_makefile_local "$1 := $VALUE"
+		else
+			add_line_to_makefile_local "$1 ?= $VALUE"
+		fi
+		[ -n "$2" ] && echo $2
+	else
+		add_line_to_makefile_local "# $1 ?= $VALUE"
+		[ -n "$3" ] && echo $3
+		[ "$4" = "yes" ] && exit 1
+	fi
+}
+
+add_line_to_config_h() {
+	config_h_data="${config_h_data}"'
+'"$1"
+}
+
+add_to_config_h_quote() {
+	VALUE=`get_var $1`
+	if [ -n "$VALUE" ] && [ "$VALUE" != "no" ]; then
+		add_line_to_config_h "#define $1 \"$VALUE\""
+		[ -n "$2" ] && echo $2
+	else
+		add_line_to_config_h "/* #define $1 \"$VALUE\" */"
+		[ -n "$3" ] && echo $3
+		[ "$4" = "yes" ] && exit 1
+	fi
+}
+
+add_to_config_h() {
+	VALUE=`get_var $1`
+	if [ -n "$VALUE" ] && [ "$VALUE" != "no" ]; then
+		add_line_to_config_h "#define $1 $VALUE"
+		[ -n "$2" ] && echo $2
+	else
+		add_line_to_config_h "/* #define $1 $VALUE */"
+		[ -n "$3" ] && echo $3
+		[ "$4" = "yes" ] && exit 1
+	fi
+}
+
+config_h() {
+	add_to_config_h PARANOID "Enable paranoid build"
+	add_to_config_h HARD_LINKED_GAME "Enable hard linked game"
+	add_to_config_h HARD_LINKED_CGAME "Enable hard linked cgame"
+	add_to_config_h USE_SIGNALS "Use signal handler"
+	add_to_config_h_quote PKGDATADIR "Setting custom data directory"
+	add_to_config_h_quote PKGLIBDIR "Setting custom library directory"
+	add_to_config_h_quote LOCALEDIR "Setting custom locale directory"
+}
+
+makefile_local() {
+	add_to_makefile_local DEBUG "Debug build"
+	add_to_makefile_local PROFILING "Enable profiling"
+	add_to_makefile_local STATIC "Enable static linking"
+	add_to_makefile_local W2K "Enable Windows 2000 compatibility"
+	add_to_makefile_local SSE "Enable Streaming SIMD Extensions"
+	add_to_makefile_local HARD_LINKED_GAME
+	add_to_makefile_local HARD_LINKED_CGAME
+	add_to_makefile_local DISABLE_DEPENDENCY_TRACKING "Disable dependency tracking"
+	add_to_makefile_local UNIVERSAL "Build a universal binary"
+	add_to_makefile_local TARGET_OS "Compile for ${TARGET_OS}"
+	add_to_makefile_local TARGET_ARCH "Compile for ${TARGET_ARCH}"
+	add_to_makefile_local MODE "Compile in ${MODE} mode"
+	add_to_makefile_local USE_CCACHE "Use ccache" "Disable ccache"
+	add_to_makefile_local CFLAGS "Added CFLAGS ${CFLAGS}" "Using default CFLAGS"
+	add_to_makefile_local LDFLAGS "Added LDFLAGS ${LDFLAGS}" "Using default LDFLAGS"
+	add_to_makefile_local_quote CC "Found cc ${CC}"
+	add_to_makefile_local_quote CXX "Found cxx ${CXX}"
+	add_to_makefile_local_quote CROSS "Using tools prefix ${CROSS}"
+	add_to_makefile_local_quote PKGBINDIR "Using bindir ${PKGBINDIR}"
+	add_to_makefile_local_quote PKGDATADIR "Using datadir ${PKGDATADIR}"
+	add_to_makefile_local_quote PKGLIBDIR "Using libdir ${PKGLIBDIR}"
+	add_to_makefile_local_quote LOCALEDIR "Using localedir ${LOCALEDIR}"
+	add_to_makefile_local_quote PREFIX "Using prefix ${PREFIX}"
+}
+
+check_header_cc() {
+	SOURCE=`cat << EOF
+#include <stdlib.h>
+#include <stdio.h>
+#include <${1}>
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM != 501
+#error Lua version must be 5.1
+#endif
+EOF`
+	if [ -n "${2}" ]; then
+		while [ -n "${2}" ]; do
+			( echo "$SOURCE" | ${CROSS}${CXX} -DPACKAGE ${CCFLAGS} ${CXXFLAGS} ${CFLAGS} $(${CROSS}pkg-config --cflags ${2} 2> /dev/null) -o /dev/null -xc++ -c - 2>> config.log ) && echo "1" && break || echo ""
+			shift
+		done
+	else
+		( echo "$SOURCE" | ${CROSS}${CXX} -DPACKAGE ${CCFLAGS} ${CXXFLAGS} ${CFLAGS} -o /dev/null -xc++ -c - 2>> config.log ) && echo "1" || echo ""
+	fi
+}
+
+check_header() {
+	HEADER=$1
+	PACKAGE=$2
+
+	PACKAGE=${PACKAGE%+*}
+	HEADER=${HEADER%.*}
+
+	if [ "$PACKAGE" != "" ]; then
+		PACKAGE="`echo ${PACKAGE} | sed 's,\.,_,g' | sed 's,-,_,g' | tr '[a-z]' '[A-Z]'`_"
+		HEADER=${HEADER##*/}
+	else
+		HEADER="`echo ${HEADER} | sed 's,/,_,g'`"
+	fi
+
+	HEADER="`echo ${HEADER} | sed 's,\.,_,g' | sed 's,-,_,g' | tr '[a-z]' '[A-Z]'`"
+
+	HAVE=HAVE_${PACKAGE}${HEADER}_H
+	if [ "${TARGET_OS}" = "android" ]; then
+		VALUE="no"
+	else
+		VALUE=`get_var $HAVE`
+	fi
+	if [ "$VALUE" != "no" ]; then
+		if [ "$VALUE" != "internal" ]; then
+			set_var $HAVE `check_header_cc $@`
+			add_to_config_h $HAVE "Found $1" "Could not find $1" $2
+			add_to_makefile_local $HAVE
+		else
+			set_var $HAVE ""
+			add_to_config_h $HAVE "" "Use embedded $1" $2
+			add_to_makefile_local $HAVE
+		fi
+	else
+		add_to_config_h $HAVE "Found $1" "Disable $1"
+	fi
+}
+
+check_header_bundled() {
+	HEADER=$1
+	PACKAGE=$2
+	VAR="WITH_EMBEDDED_${PACKAGE}"
+	VALUE=`get_var $VAR`
+	if [ -n "$VALUE" ]; then
+		PACKAGE=${PACKAGE%+*}
+		HEADER=${HEADER%.*}
+
+		if [ "$PACKAGE" != "" ]; then
+			PACKAGE="`echo ${PACKAGE} | sed 's,\.,_,g' | sed 's,-,_,g' | tr '[a-z]' '[A-Z]'`_"
+			HEADER=${HEADER##*/}
+		else
+			HEADER="`echo ${HEADER} | sed 's,/,_,g'`"
+		fi
+
+		HEADER="`echo ${HEADER} | sed 's,\.,_,g' | sed 's,-,_,g' | tr '[a-z]' '[A-Z]'`"
+
+		HAVE=HAVE_${PACKAGE}${HEADER}_H
+		set_var $HAVE "internal"
+	fi
+	check_header $@
+}
+
+check_headers() {
+	check_header "xvid.h"
+	check_header "theora/theora.h" "theora"
+	check_header "execinfo.h"
+	check_header "libiberty.h"
+	check_header "libiberty/libiberty.h"
+	if [ "$HAVE_LIBIBERTY_H" = "1" -o "$HAVE_LIBIBERTY_LIBIBERTY_H" = "1" ]; then
+		check_header "bfd.h"
+	fi
+	check_header "sys/utsname.h"
+	check_header "link.h"
+	check_header "jpeglib.h"
+	check_header "zlib.h" "zlib"
+	check_header "png.h" "libpng"
+	check_header_bundled "curl/curl.h" "libcurl"
+	check_header_bundled "lua.h" "lua5.1" "lua-5.1" "lua51" "lua"
+	check_header_bundled "mxml.h" "mxml"
+	check_header "SDL.h" "sdl"
+	check_header "SDL_mixer.h" "SDL_mixer"
+	check_header "SDL_ttf.h" "SDL_ttf"
+	if [ "$DISABLE_SDL2" != "1" ]; then
+		check_header_bundled "SDL.h" "sdl2"
+		check_header_bundled "SDL_mixer.h" "SDL2_mixer"
+		check_header_bundled "SDL_ttf.h" "SDL2_ttf"
+	fi
+	check_header "picomodel.h" "picomodel"
+	check_header "gtk/gtk.h" "gtk+-2.0"
+	check_header "gtksourceview/gtksourceview.h" "gtksourceview-2.0"
+	check_header "libxml/parser.h" "libxml-2.0"
+	check_header "AL/al.h" "openal"
+	check_header "gtk/gtkglwidget.h" "gtkglext-1.0"
+	if [ "$HAVE_GTK_GTK_H" != "1" ] || [ "$HAVE_GTKGLEXT_1_0_GTKGLWIDGET_H" != "1" ]; then
+		set_var "uforadiant_DISABLE" "yes"
+	fi
+
+	if ([ "${HAVE_SDL_SDL_H}" != "1" ] && [ "${HAVE_SDL2_SDL_H}" != "1" ]); then
+		for i in `get_modules`; do
+			if [ "$i" != "uforadiant" ]; then
+				set_var "${i}_DISABLE" "yes"
+			fi
+		done
+	fi
+
+#	if ([ "${HAVE_SDL_MIXER_SDL_MIXER_H}" != "1" ] && [ "${HAVE_SDL2_MIXER_SDL_MIXER_H}" != "1" ]); then
+#		set_var "ufo_DISABLE" "yes"
+#		set_var "testall_DISABLE" "yes"
+#	fi
+
+#	if ([ "${HAVE_SDL_TTF_SDL_TTF_H}" != "1" ] && [ "${HAVE_SDL2_TTF_SDL_TTF_H}" != "1" ]); then
+#		set_var "ufo_DISABLE" "yes"
+#		set_var "testall_DISABLE" "yes"
+#	fi
+}
+
+check_compiler() {
+	# TODO Implement compiler check
+	CC=${CC:-${DEFAULT_COMPILER_CC}}
+	CXX=${CXX:-${DEFAULT_COMPILER_CXX}}
+
+	if [ "${TARGET_OS}" = "mingw32" ] || [ "${TARGET_OS}" = "mingw64" ] || [ "${TARGET_OS}" = "mingw64_64" ]; then
+		CC=gcc
+	fi
+
+	if [ "${TARGET_OS}" = "mingw32" ] && [ "${HOST_OS}" != "mingw32" ]; then
+		CROSS="i686-pc-mingw32-"
+	fi
+
+	if [ "${TARGET_OS}" = "mingw64" ] && [ "${HOST_OS}" != "mingw64" ]; then
+		CROSS="i686-w64-mingw32-"
+	fi
+
+	if [ "${TARGET_OS}" = "mingw64_64" ] && [ "${HOST_OS}" != "mingw64_64" ]; then
+		CROSS="x86_64-w64-mingw32-"
+	fi
+
+	if [ -n "${CROSS}" ]; then
+		command -v "${CROSS}${CC}" 2>> config.log >> config.log
+		if [ $? -eq 0 ]; then
+			echo "Found ${CROSS}${CC} in the path"
+		else
+			echo "Cross compiling, make sure that ${CROSS}${CC} is in your path"
+		fi
+		command -v "${CROSS}pkg-config" 2>> config.log >> config.log
+		if [ $? -eq 0 ]; then
+			echo "Found ${CROSS}pkg-config in the path"
+		else
+			echo "Cross compiling, make sure that ${CROSS}pkg-config is in your path"
+		fi
+	fi
+
+	echo "use c compiler: ${CROSS}${CC}"
+	echo "use c++ compiler: ${CROSS}${CXX}"
+
+	${CROSS}${CC} --help 2>> config.log >> config.log
+	if [ $? -ne 0 ]; then
+		error "Could not find the c compiler: ${CROSS}${CC} in your path: ${PATH}"
+	fi
+	${CROSS}${CXX} --help 2>> config.log >> config.log
+	if [ $? -ne 0 ]; then
+		error "Could not find the c++ compiler: ${CROSS}${CXX} in your path: ${PATH}"
+	fi
+}
+
+usage() {
+	echo "Usage: $0"
+	echo " --help                     show this help message"
+	echo " --enable-ccache            use ccache for building"
+	echo " --enable-hardlinkedgame    hard link the server game code"
+	echo " --enable-hardlinkedcgame   hard link the client game code"
+	echo " --enable-paranoid          compile in paranoid mode with extra checks"
+	echo " --enable-profiling         activates profiling"
+	echo " --enable-release           build with optimizations"
+	echo " --enable-static            enable static linking"
+	echo " --enable-universal         enable universal build"
+	echo " --enable-w2k               enable Windows 2000 compatibility"
+	if [ -n "$(echo ${TARGET_ARCH} | grep -e '^i.86$' -e '^x86_64$')" ]; then
+		echo " --enable-sse               enable Streaming SIMD Extensions"
+	fi
+	echo " --disable-execinfo         disable backtraces for crashes"
+	echo " --disable-signals          disable the use of a signal handler"
+	echo " --disable-sdl2             disable the use of SDL2.x and prefer to use SDL1.x"
+	echo " --with-embedded-lua5.1     use the copy of lua bundled with the source"
+	echo " --with-embedded-mxml       use the copy of mxml bundled with the source"
+	echo " --with-embedded-libcurl    use the copy of curl bundled with the source"
+	echo " --with-embedded-SDL2_mixer use the copy of SDL_mixer bundled with the source"
+	echo " --with-embedded-SDL2_ttf   use the copy of SDL_ttf bundled with the source"
+	echo
+	echo " --target-os=               specify the target os"
+	(cd build/platforms; for i in *.mk; do echo "  * ${i%.mk}"; done)
+	echo
+	echo " --bindir=                  path for the ufoai binaries"
+	echo " --datadir=                 path for the ufoai game data"
+	echo " --libdir=                  path for the ufoai shared objects"
+	echo " --localedir=               path for the ufoai translations"
+	echo " --prefix=                  prefix for directories"
+	echo
+	echo " --disable-*                specify which target should not get built"
+	echo " --enable-*                 specify which target should get built"
+	echo " --enable-only-*            disable all other targets"
+	(cd build/modules; for i in *.mk; do echo "  * ${i%.mk}"; done)
+	echo
+	echo " --disable-dependency-tracking"
+	exit 1
+}
+
+make_var() {
+	echo "$1" | sed 's/-/_/g' | sed 's/\./_/g'
+}
+
+set_var() {
+	eval `make_var "$1"`=\""$2"\"
+}
+
+get_var() {
+	eval echo \${`make_var "$1"`}
+}
+
+get_modules() {
+	(cd build/modules; for i in *.mk; do echo "${i%.mk}"; done)
+}
+
+check_path_characters() {
+	# Find out where configure is (in what dir)
+	ROOT_DIR="`dirname $0`"
+	# For MSYS/MinGW we want to know the FULL path. This as that path is generated
+	# once you call an outside binary. Having the same path for the rest is needed
+	# for dependency checking.
+	# pwd -W returns said FULL path, but doesn't exist on others so fall back.
+	ROOT_DIR="`cd $ROOT_DIR && (pwd -W 2>/dev/null || pwd 2>/dev/null)`"
+
+	if [ -n "`echo \"$ROOT_DIR\" | grep '[^-\w\/\\\.:]~?'`" ]; then
+		echo "WARNING: The path contains a non-alphanumeric character that might cause"
+		echo "         failures in subsequent build stages. Any failures with the build"
+		echo "         will most likely be caused by this."
+		echo "         $ROOT_DIR"
+	fi
+	if [ -n "`echo \"$ROOT_DIR\" | grep '[\(\)]'`" ]; then
+		echo "ERROR: The path contains a square character that cause"
+		echo "       failures in subsequent build stages!!!"
+		echo "       $ROOT_DIR"
+		exit 1
+	fi
+}
+
+check_ccache() {
+	if [ "$USE_CCACHE" = "1" ]; then
+		ccache --help 2>> config.log >> config.log
+		if [ $? -ne 0 ]; then
+			USE_CCACHE=0
+		fi
+	fi
+}
+
+check_program() {
+	BINARY=$1
+	TOOL=${2:-${BINARY}}
+	MANDATORY=${3:-0}
+	HAVE=PROGRAM_`echo ${BINARY%.*} | sed 's,/,_,g' | tr '[a-z]' '[A-Z]'`
+	command -v "${BINARY}" 2>> config.log >> config.log
+	if [ $? -eq 0 ]; then
+		set_var $HAVE "$1"
+	fi
+	add_to_makefile_local $HAVE "Found ${BINARY} from ${TOOL}" "Could not find ${BINARY} from ${TOOL}" $MANDATORY
+}
+
+check_programs() {
+	check_program zip
+	check_program python
+	check_program doxygen
+}
+
+check_target_os() {
+	local FOUND=0
+	for i in build/platforms/*.mk; do
+		if [ `basename $i .mk` = $1 ]; then
+			FOUND=1
+		fi
+	done
+
+	[ $FOUND -eq 0 ] && echo "invalid target-os given: $1" && exit 1
+}
+
+check_module() {
+	local FOUND=0
+	for i in `get_modules`; do
+		if [ $i = $1 ]; then
+			FOUND=1
+		fi
+	done
+
+	[ $FOUND -eq 0 ] && error "invalid module given: $1"
+}
+
+get_ini_value() {
+	awk -v str="$2" -F '[ \t]*=[ \t]*' '{if (! ($0 ~ /^;/) && $0 ~ str) print $2}' "$1" 2>> config.log
+}
+
+set_path_env() {
+	case ${TARGET_OS} in
+	mingw*)
+		MXE_FILE=~/.mxe.settings
+		set_var "ADDITIONAL_PATH" `get_ini_value "${MXE_FILE}" "PATH"`
+		add_to_makefile_local ADDITIONAL_PATH "Found mxe additional path settings" "Could not get the mxe path from ${MXE_FILE}"
+		PATH="${ADDITIONAL_PATH}:$PATH"
+		;;
+	esac
+}
+
+enable_only() {
+	for i in `get_modules`; do
+		if [ "$i" = "$1" ]; then
+			set_var "${i}_DISABLE" ""
+		else
+			set_var "${i}_DISABLE" "yes"
+		fi
+	done
+}
+
+check_path_characters
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--help|-h)
+		usage
+		;;
+	--enable-ccache)
+		USE_CCACHE="1"
+		;;
+	--disable-ccache)
+		USE_CCACHE="0"
+		;;
+	--enable-release)
+		MODE=release
+		DEBUG=
+		;;
+	--disable-release)
+		MODE=debug
+		DEBUG=1
+		;;
+	--enable-static)
+		STATIC=1
+		;;
+	--disable-static)
+		STATIC=
+		;;
+	--enable-universal)
+		UNIVERSAL=1
+		DISABLE_DEPENDENCY_TRACKING=1
+		;;
+	--disable-universal)
+		UNIVERSAL=
+		;;
+	--enable-hardlinkedgame)
+		HARD_LINKED_GAME=1
+		;;
+	--disable-hardlinkedgame)
+		HARD_LINKED_GAME=
+		;;
+	--enable-hardlinkedcgame)
+		HARD_LINKED_CGAME=1
+		;;
+	--disable-hardlinkedcgame)
+		HARD_LINKED_CGAME=
+		;;
+	--enable-paranoid)
+		PARANOID=1
+		;;
+	--disable-paranoid)
+		PARANOID=
+		;;
+	--enable-profiling)
+		PROFILING=1
+		;;
+	--disable-profiling)
+		PROFILING=
+		;;
+	--enable-w2k)
+		W2K=1
+		;;
+	--disable-w2k)
+		W2K=
+		;;
+	--enable-sse)
+		if [ -z "$(echo ${TARGET_ARCH} | grep -e '^i.86$' -e '^x86_64$')" ] ;then
+			echo "invalid $1 option for your CPU"
+			exit 1
+		fi
+		SSE=1
+		;;
+	--disable-sse)
+		SSE=0
+		;;
+	--enable-signals)
+		USE_SIGNALS=1
+		;;
+	--disable-sdl2)
+		DISABLE_SDL2=1
+		;;
+	--with-embedded-*)
+		set_var "WITH_EMBEDDED_${1#--with-embedded-}" "1"
+		;;
+	--disable-signals)
+		USE_SIGNALS=
+		;;
+	--enable-execinfo)
+		HAVE_EXECINFO_H=yes
+		;;
+	--disable-execinfo)
+		HAVE_EXECINFO_H=no
+		;;
+	--disable-dependency-tracking)
+		DISABLE_DEPENDENCY_TRACKING=1
+		;;
+	--prefix=*)
+		PREFIX="${1#*=}"
+		;;
+	--datadir=*)
+		PKGDATADIR="${1#*=}"
+		;;
+	--libdir=*)
+		PKGLIBDIR="${1#*=}"
+		;;
+	--localedir=*)
+		LOCALEDIR="${1#*=}"
+		;;
+	--bindir=*)
+		PKGBINDIR="${1#*=}"
+		;;
+	--target-os=*)
+		TARGET_OS="${1#*=}"
+		check_target_os $TARGET_OS
+		;;
+	--disable-*)
+		OPTION="${1#--disable-}"
+		check_module $OPTION
+		set_var "${OPTION}_DISABLE" "yes"
+		;;
+	--enable-only-*)
+		OPTION="${1#--enable-only-}"
+		HARD_LINKED_GAME=1
+		HARD_LINKED_CGAME=1
+		check_module $OPTION
+		enable_only $OPTION
+		;;
+	--enable-*)
+		OPTION="${1#--enable-}"
+		check_module $OPTION
+		set_var "${OPTION}_DISABLE" ""
+		;;
+	CC=*)       CC="${1#CC=}";;
+	CXX=*)      CXX="${1#CXX=}";;
+	CFLAGS=*)   CFLAGS="${1#*=}";;
+	LDFLAGS=*)  LDFLAGS="${1#*=}";;
+	*)
+		echo "invalid option $1"
+		exit 1
+		;;
+	esac
+	shift
+done
+
+set_path_env
+
+case ${TARGET_OS} in
+mingw32|mingw64)
+	TARGET_ARCH=i386
+	TARGET_ARCH=i386
+	;;
+mingw64_64)
+	TARGET_ARCH=x86_64
+	;;
+android)
+	TARGET_ARCH=arm
+	HARD_LINKED_GAME=1
+	HARD_LINKED_CGAME=1
+	enable_only ${PROGRAM}
+	;;
+html5)
+	HARD_LINKED_GAME=1
+	HARD_LINKED_CGAME=1
+	if [ -z "$EMSCRIPTEN_ROOT" ]; then
+		EMSCRIPTEN_ROOT=`python -c "import os, sys, re, json, shutil; exec(open(os.path.expanduser('~/.emscripten'), 'r').read()); print EMSCRIPTEN_ROOT"`
+		CONFIGURE_PREFIX=${EMSCRIPTEN_ROOT}/emconfigure
+		echo "restart configure ($ARGS)"
+		EMSCRIPTEN_ROOT="${EMSCRIPTEN_ROOT}" CONFIGURE_PREFIX="${EMSCRIPTEN_ROOT}/emconfigure" $CONFIGURE_PREFIX ./configure $ARGS
+		exit
+	else
+		enable_only ${PROGRAM}
+		add_to_makefile_local EMSCRIPTEN_ROOT "Emscripten found at ${EMSCRIPTEN_ROOT}"
+		add_to_makefile_local CONFIGURE_PREFIX "Use ${EMSCRIPTEN_ROOT}/emconfigure"
+	fi
+	;;
+darwin)
+	USE_SIGNALS=
+	;;
+esac
+
+PKGDATADIR=${PKGDATADIR:-${PREFIX}/games/${PROGRAM}/}
+PKGBINDIR=${PKGBINDIR:-${PREFIX}/bin/}
+PKGLIBDIR=${PKGLIBDIR:-${PREFIX}/lib/}
+
+check_compiler
+check_ccache
+makefile_local
+config_h
+check_programs
+check_headers
+
+echo "Build modules:"
+for i in `get_modules`; do
+	add_to_makefile_local ${i}_DISABLE
+	if [ "`get_var ${i}_DISABLE`" = "yes" ]; then
+		echo "Disable $i"
+	else
+		echo "Build $i"
+	fi
+done
+
+cat > ${MAKEFILE_LOCAL} << EOF
+# -------- Automatically generated -----------
+$makefile_local_data
+
+# allow to specify your own targets
+-include config.mk
+EOF
+
+cat > ${TARGET_OS}-${CONFIG_H}.tmp << EOF
+/* This file is automatically generated */
+#pragma once
+$config_h_data
+EOF
+
+if diff ${TARGET_OS}-${CONFIG_H}.tmp ${TARGET_OS}-${CONFIG_H} 2>/dev/null >/dev/null; then
+	if [ configure -nt ${TARGET_OS}-${CONFIG_H} ]; then
+		mv ${TARGET_OS}-${CONFIG_H}.tmp ${TARGET_OS}-${CONFIG_H}
+	else
+		rm -f ${TARGET_OS}-${CONFIG_H}.tmp
+	fi
+else
+	mv ${TARGET_OS}-${CONFIG_H}.tmp ${TARGET_OS}-${CONFIG_H}
+fi

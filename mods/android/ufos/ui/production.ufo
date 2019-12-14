@@ -1,0 +1,624 @@
+// ==================
+// PRODUCTION MENU
+// ==================
+window production
+{
+	/** @todo Remove me */
+	{ } // empty properties to fix parsing problem with "image" token (behaviour or property?)
+
+	// ==================
+	// background
+	// ==================
+
+	image background
+	{
+		src		"background/base_bg"
+	}
+	cmpBaseHeader baseHeader {
+	}
+
+	// ==================
+	// tab
+	// ==================
+
+	panel tab_background {
+		pos		"24 96"
+		size	"986 56"
+		background	"ui/panel_tab"
+	}
+
+	/**
+	 * @brief function to show/hide storage capacity info
+	 * @todo show hangar capacity when aircraft is selected
+	 */
+	func prod_stores {
+		if ( *cvar:mn_itemtype ne "aircraft" ) {
+			*node:parent.infopanel.txt_prod_storage_caption@invis	= false
+			*node:parent.infopanel.txt_prod_storage@invis	= false
+		} else {
+			*node:parent.infopanel.txt_prod_storage_caption@invis	= true
+			*node:parent.infopanel.txt_prod_storage@invis	= true
+		}
+	}
+
+	tab market_navigation {
+		{
+			pos		"47 106"
+			size	"938 39"
+			cvar	*cvar:mn_itemtype
+			onChange {
+				cmd "prod_type <cvar:mn_itemtype>;"
+				call *node:root.prod_stores
+			}
+		}
+
+		option primary {
+			label	"_Primary"
+			value	"primary"
+		}
+		option secondary {
+			label	"_Secondary"
+			value	"secondary"
+		}
+		option description {
+			label	"_Heavy"
+			value	"heavy"
+		}
+		option misc {
+			label	"_Misc"
+			value	"misc"
+		}
+		option armour {
+			label	"_Armour"
+			value	"armour"
+		}
+		option craftitem {
+			label	"_Craft items"
+			value	"craftitem"
+		}
+		option aircraft {
+			label	"_Aircraft"
+			value	"aircraft"
+		}
+		option ugvitem {
+			label	"_UGV items"
+			value	"ugvitem"
+		}
+		option dummy {
+			label	"_Other"
+			value	"dummy"
+		}
+		option disassembly {
+			label	"_Disassembly"
+			value	"disassembly"
+		}
+	}
+
+	// ==================
+	// lists
+	// ==================
+
+	rows lines {
+		pos			"28 175"
+		size		"530 568"
+		color1		"0 0.08 0 1"
+		color2		"0 0.16 0 1"
+		lineheight	50
+	}
+
+	panel scroll_bg {
+		pos			"421 175"
+		size		"31 568"
+		bgcolor		"0 0 0 0.5"
+	}
+
+	panel verticalline {
+		pos		"451 175"
+		size	"4 565"
+		bgcolor	"0.03 0.42 0.03 1"
+	}
+
+	panel itemlist {
+		pos		"12 160"
+		size	"553 597"
+		background	"ui/panel_grey_green_large2"
+	}
+
+	// ==================
+	// info panel
+	// ==================
+
+	panel infopanel {
+		{
+			pos		"580 160"
+			size	"420 145"
+			background	"ui/panel_grey_green_large"
+		}
+
+		// ==================
+		// workers
+		// ==================
+
+		string txt_prod_workers_caption
+		{
+			string		"_Workers (ready/all):"
+			pos			"30 25"
+			size		"250 20"
+			font		"f_small"
+		}
+
+		string txt_prod_workers
+		{
+			string		*cvar:mn_production_workers
+			pos			"295 25"
+			size		"100 20"
+			contentalign	ALIGN_UR
+			font		"f_small"
+		}
+
+		// ==================
+		// workshop capacity
+		// ==================
+
+		string txt_prod_basecap_caption
+		{
+			string		"_Workshop capacity:"
+			pos			"30 50"
+			size		"250 20"
+			font		"f_small"
+		}
+
+		string txt_prod_basecap
+		{
+			string		*cvar:mn_production_basecap
+			pos			"295 50"
+			size		"100 20"
+			contentalign	ALIGN_UR
+			font		"f_small"
+		}
+
+		// ==================
+		// storage capacity
+		// ==================
+
+		string txt_prod_storage_caption
+		{
+			string		"_Storage capacity:"
+			pos			"30 75"
+			size		"250 20"
+			font		"f_small"
+		}
+
+		string txt_prod_storage
+		{
+			string		*cvar:mn_production_storage
+			pos			"295 75"
+			size		"100 20"
+			contentalign	ALIGN_UR
+			font		"f_small"
+		}
+
+		// ==================
+		// prod limit
+		// ==================
+
+		string txt_prod_limit_caption
+		{
+			string		"_Production limit:"
+			pos			"30 100"
+			size		"250 20"
+			font		"f_small"
+		}
+
+		string txt_prod_limit
+		{
+			string		*cvar:mn_production_limit
+			pos			"295 100"
+			size		"100 20"
+			contentalign	ALIGN_UR
+			font		"f_small"
+		}
+	}
+
+	// ==================
+	// list
+	// ==================
+
+	textlist prodlist
+	{
+		dataid		TEXT_PRODUCTION_LIST
+		color		"0 .78 0 1"
+		rows		"11"
+		lineheight	"50"
+		pos			"55 180"
+		size		"250 550"
+		longlines	LONGLINES_PRETTYCHOP
+		onClick		{
+			*node:root.prodlist_amount@lineselected = <node:this@lineselected>
+			*node:root.prodlist_queued@lineselected = <node:this@lineselected>
+			cmd "prodlist_click <lineselected>;"
+		}
+		onRClick	{
+			*node:root.prodlist_amount@lineselected = <node:this@lineselected>
+			*node:root.prodlist_queued@lineselected = <node:this@lineselected>
+			cmd "prodlist_rclick <lineselected>;"
+		}
+		onViewChange	{
+			*node:root.prodlist_scroll@fullsize = <fullsize>
+			*node:root.prodlist_scroll@current = <viewpos>
+			*node:root.prodlist_scroll@viewsize = <viewsize>
+			*node:root.prodlist_amount@viewpos = <viewpos>
+			*node:root.prodlist_queued@viewpos = <viewpos>
+		}
+	}
+
+	textlist prodlist_amount
+	{
+		dataid		TEXT_PRODUCTION_AMOUNT
+		color		"0 .78 0 1"
+		contentalign	ALIGN_CR
+		pos			"310 180"
+		rows		"11"
+		size		"60 550"
+		lineheight	"50"
+		onClick		{
+			*node:root.prodlist@lineselected = <node:this@lineselected>
+			*node:root.prodlist_queued@lineselected = <node:this@lineselected>
+			cmd "prodlist_click <lineselected>;"
+		}
+		onRClick	{
+			*node:root.prodlist@lineselected = <node:this@lineselected>
+			*node:root.prodlist_queued@lineselected = <node:this@lineselected>
+			cmd "prodlist_rclick <lineselected>;"
+		}
+		onViewChange	{
+			*node:root.prodlist_scroll@fullsize = <fullsize>
+			*node:root.prodlist_scroll@current = <viewpos>
+			*node:root.prodlist_scroll@viewsize = <viewsize>
+			*node:root.prodlist@viewpos = <viewpos>
+			*node:root.prodlist_queued@viewpos = <viewpos>
+		}
+	}
+
+	textlist prodlist_queued
+	{
+		dataid		TEXT_PRODUCTION_QUEUED
+		pos			"465 180"
+		size		"60 550"
+		color		"0 .78 0 1"
+		lineheight	"50"
+		rows		"11"
+		onClick		{
+			*node:root.prodlist@lineselected = <node:this@lineselected>
+			*node:root.prodlist_amount@lineselected = <node:this@lineselected>
+			cmd "prodlist_click <lineselected>;"
+		}
+		onRClick	{
+			*node:root.prodlist@lineselected = <node:this@lineselected>
+			*node:root.prodlist_queued@lineselected = <node:this@lineselected>
+			cmd "prodlist_rclick <lineselected>;"
+		}
+		onViewChange	{
+			*node:root.prodlist_scroll@fullsize = <fullsize>
+			*node:root.prodlist_scroll@current = <viewpos>
+			*node:root.prodlist_scroll@viewsize = <viewsize>
+			*node:root.prodlist_amount@viewpos = <viewpos>
+			*node:root.prodlist@viewpos = <viewpos>
+		}
+	}
+
+	vscrollbar prodlist_scroll {
+		image		"ui/scrollbar_v_green"
+		pos			"428 180"
+		height		"556"
+		current		0
+		viewsize	30
+		fullsize	30
+		onChange	{
+			*node:root.prodlist@viewpos = <current>
+			*node:root.prodlist_amount@viewpos = <current>
+			*node:root.prodlist_queued@viewpos = <current>
+		}
+	}
+
+	confunc prod_selectline {
+		*node:root.prodlist@lineselected = <1>
+		*node:root.prodlist_amount@lineselected = <1>
+		*node:root.prodlist_queued@lineselected = <1>
+	}
+	// ==================
+	// item
+	// ==================
+
+	panel itempanel {
+		{
+			pos		"580 310"
+			size	"420 447"
+			background	"ui/panel_grey_green_large"
+		}
+
+		item itemmodel
+		{
+			src			*cvar:mn_item
+			pos			"17 17"
+			size		"386 152"
+			angles		"0 180 90"
+			omega		"0 10 0"
+			autoscale	true
+		}
+
+	}
+
+	// ==================
+	// info
+	// @todo move it into the item panel
+	// ==================
+
+	string prod_amount {
+		string		*cvar:mn_production_amount
+		pos			"650 480"
+		size		"40 50"
+		color		"0 .78 0 1"
+		font		"f_small"
+		contentalign	ALIGN_CR
+	}
+
+	string label_1 {
+		string		"x1"
+		pos			"680 480"
+		size		"24 50"
+		color		"0 .78 0 1"
+		font		"f_small"
+		contentalign	ALIGN_CR
+	}
+
+	string label_10 {
+		string		"x10"
+		pos			"810 480"
+		size		"36 50"
+		color		"0 .78 0 1"
+		font		"f_small"
+		contentalign	ALIGN_CR
+	}
+
+	spinner_horiz prod_change {
+		tooltip		"_Change the production amount"
+		pos			"710 480"
+		inverted	true
+		min			1
+		current		*cvar:mn_production_amount
+		max			1000
+		delta		1
+		onChange	{ cmd "prod_change <lastdiff>;" }
+	}
+
+	spinner_horiz prod_change_10 {
+		tooltip		"_Change the production amount"
+		pos			"850 480"
+		inverted	true
+		min			1
+		current		*cvar:mn_production_amount
+		max			1000
+		delta		10
+		onChange	{ cmd "prod_change <lastdiff>;" }
+	}
+
+	button prod_new
+	{
+		string		"_Start this production"
+		background		"ui/button_green_small"
+		pos			"670 480"
+		size		"250 50"
+		font		"f_small"
+		color		"0 .78 0 1"
+		onClick		{ cmd "prod_inc;" }
+	}
+
+	button prod_stop
+	{
+		tooltip		"_Stop production"
+		icon		"icons/bordered_cross"
+		pos			"931 480"
+		size		"50 50"
+		padding		17
+		onClick		{ cmd "prod_stop;" }
+	}
+
+	button prod_up
+	{
+		tooltip		"_Increase priority"
+		icon		"icons/arrow_top"
+		pos			"615 400"
+		size		"16 16"
+		padding		"0"
+		onClick		{ cmd "prod_up;" }
+		onWheelUp	{ cmd "prod_up;" }
+		onWheelDown	{ cmd "prod_down;" }
+	}
+
+	button prod_down
+	{
+		tooltip		"_Decrease priority"
+		icon		"icons/arrow_bottom"
+		pos			"615 420"
+		size		"16 16"
+		padding		0
+		onClick		{ cmd "prod_down;" }
+		onWheelUp	{ cmd "prod_up;" }
+		onWheelDown	{ cmd "prod_down;" }
+	}
+
+	/**
+	 * @brief nothing is selected
+	 */
+	confunc prod_nothingselected
+	{
+		*node:root.prod_stop@invis = true
+		*node:root.prod_down@invis = true
+		*node:root.prod_up@invis = true
+		*node:root.prod_change@invis = true
+		*node:root.prod_change_10@invis = true
+		*node:root.prod_new@invis = true
+		*node:root.prod_amount@invis = true
+		*node:root.label_1@invis = true
+		*node:root.label_10@invis = true
+	}
+
+	/**
+	 * @brief an available production is selected
+	 */
+	confunc prod_availableselected
+	{
+		*node:root.prod_stop@invis = true
+		*node:root.prod_down@invis = true
+		*node:root.prod_up@invis = true
+		*node:root.prod_change@invis = true
+		*node:root.prod_change_10@invis = true
+		*node:root.prod_amount@invis = true
+		*node:root.prod_new@invis = false
+		*node:root.label_1@invis = true
+		*node:root.label_10@invis = true
+	}
+
+	/**
+	 * @brief a production task is selected
+	 */
+	confunc prod_taskselected
+	{
+		*node:root.prod_stop@invis = false
+		*node:root.prod_down@invis = false
+		*node:root.prod_up@invis = false
+		*node:root.prod_change@invis = false
+		*node:root.prod_change_10@invis = false
+		*node:root.prod_amount@invis = false
+		*node:root.prod_new@invis = true
+		*node:root.label_1@invis = false
+		*node:root.label_10@invis = false
+	}
+
+	// ==================
+	// item description
+	// ==================
+
+
+	panel requirement {
+		{
+			pos		"610 615"
+			size	"346 120"
+		}
+
+		string label {
+			pos "5 5"
+			size "336 20"
+			font	"f_verysmall"
+			string "_Requirements"
+		}
+
+		optiontree prodreq
+		{
+			cvar		*cvar:ui_prreq
+			dataid		OPTION_PRODUCTION_REQUIREMENTS
+			pos			"5 26"
+			size		"320 92"
+			font		"f_verysmall"
+			color		"0 .78 0 1"
+			selectcolor	"0 .78 0 1"
+			onViewChange	{
+				*node:parent.prodreq_scroll@fullsize = <fullsize>
+				*node:parent.prodreq_scroll@current = <viewpos>
+				*node:parent.prodreq_scroll@viewsize = <viewsize>
+			}
+		}
+
+		vscrollbar prodreq_scroll {
+			image		"ui/scrollbar_v_green"
+			pos			"326 26"
+			height		"92"
+			current		0
+			viewsize	6
+			fullsize	6
+			hidewhenunused true
+			onChange	{ *node:parent.prodreq@viewpos = <current> }
+		}
+	}
+
+	panel proddesc {
+		{
+			pos			"610 533"
+			size		"346 80"
+			layout		LAYOUT_BORDER
+		}
+
+		text description
+		{
+			dataid		TEXT_PRODUCTION_INFO
+			align		LAYOUTALIGN_MIDDLE
+			lineheight	20
+			tabwidth	260
+			rows		4
+			onChange
+			{
+				*node:root.proddesc.description_scroll@current = 0
+				*node:root.proddesc.description@viewpos = 0
+			}
+			onViewChange	{
+				*node:root.proddesc.description_scroll@fullsize = <fullsize>
+				*node:root.proddesc.description_scroll@current = <viewpos>
+				*node:root.proddesc.description_scroll@viewsize = <viewsize>
+			}
+		}
+
+		vscrollbar description_scroll {
+			image		"ui/scrollbar_v_green"
+			align		LAYOUTALIGN_RIGHT
+			current		0
+			viewsize	4
+			fullsize	4
+			hidewhenunused true
+			onChange	{ *node:root.proddesc.description@viewpos = <current> }
+		}
+	}
+
+	confunc show_requirements {
+		*cvar:parm = <1>
+
+		if ( *cvar:parm > 0 ) {
+			*node:root.requirement@invis = false
+			*node:root.proddesc@height = 80
+		} else {
+			*node:root.requirement@invis = true
+			*node:root.proddesc@height = 200
+		}
+		delete *cvar:parm
+	}
+
+	// ==================
+	// init function
+	// ==================
+
+	confunc amountsetter {
+		*cvar:tmp = "<1>"
+		if ( *cvar:tmp eq "disable" ) {
+			*node:root.prod_change@disabled = true
+			*node:root.prod_change_10@disabled = true
+		} else {
+			*node:root.prod_change@disabled = false
+			*node:root.prod_change_10@disabled = false
+		}
+		delete *cvar:tmp
+	}
+
+	func onWindowOpened
+	{
+		cmd "prod_init; prod_type *cvar:mn_itemtype;"
+		call *node:root.prod_stores
+		*cvar:ui_prreq = ""
+	}
+	func onWindowClosed
+	{
+		delete *cvar:ui_prreq
+		// call base init function because the amount of workers, scientists and
+		// so on can also change the button state in the base view
+		cmd "base_init;"
+	}
+}

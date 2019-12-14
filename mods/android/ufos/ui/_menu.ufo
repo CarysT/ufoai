@@ -1,0 +1,609 @@
+// =======================================
+// COMPONENTS FOR THE MAIN USER INTERFACE
+// =======================================
+
+/**
+ * Big green button used in all main menu UI
+ * We should only use it for the main UI (outside game)
+ */
+
+component cmpMenuButton extends button
+{
+	size "256 64"
+	background	"ui/button_green_big"
+	font	"f_menubig"
+	color	"0 0.5 0 1"
+	selectcolor "1 1 1 1"
+}
+
+/**
+ * Bar with border, label and value.
+ * Used to show stats of the actor.
+ * This version is used in menu "employees" and "game_team"
+ */
+
+component cmpDefNamedTbar extends panel
+{
+	{
+		size	"450 32"
+	}
+	image			bdr {
+		pos "25 18"
+		src "ui/bar_border"
+	}
+	tbar		bar {
+		pos "27 18"
+		texl "3 0"
+		image "ui/bar_attribute"
+		size "250 16"
+		max 100
+	}
+	string	lbl {
+		pos "0 0"
+		size "180 20"
+		string ""
+	}
+	string	val {
+		pos "190 0"
+		size "130 20"
+		contentalign ALIGN_UR
+	}
+}
+
+/**
+ * screenshot of the map. Used in skirmish and mp.
+ */
+
+component cmpMapImage extends image
+{
+	texl			"0 0"
+	texh			"128 96"
+	onWheelUp		{ cmd "mn_prevmap;" }
+	onWheelDown		{ cmd "mn_nextmap;" }
+	onClick			{ cmd "mn_nextmap;" }
+	onRClick		{ cmd "mn_prevmap;" }
+}
+
+component cmpMapSlot extends panel
+{
+	{
+		size "315 35"
+	}
+
+	textentry slot_map
+	{
+		background		"ui/button_green_verysmall"
+		color 		"0 .78 0 1"
+		string		*cvar:mn_svmapname
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_small"
+		pos			"32 0"
+		size		"256 34"
+		disabled	true
+		onWheelUp	{ cmd "mn_prevmap;" }
+		onWheelDown	{ cmd "mn_nextmap;" }
+	}
+
+	button prev_map
+	{
+		pos			"0 0"
+		size		"35 35"
+		icon		"icons/prev"
+		onWheelUp	{ cmd "mn_prevmap;" }
+		onWheelDown	{ cmd "mn_nextmap;" }
+		onClick		{ cmd "mn_prevmap;" }
+	}
+	button next_map
+	{
+		pos			"285 0"
+		size		"35 35"
+		icon		"icons/next"
+		onWheelUp	{ cmd "mn_prevmap;" }
+		onWheelDown	{ cmd "mn_nextmap;" }
+		onClick		{ cmd "mn_nextmap;" }
+	}
+}
+
+
+/**
+ * Header for the base. Used in all baseview screens
+ */
+
+component cmpDefBaseHeader extends panel {
+	{
+		pos "0 0"
+		size "1024 90"
+	}
+
+	string txt_credits_caption
+	{
+		string		"_CREDITS"
+		pos			"675 32"
+		size		"100 30"
+		font		"f_big"
+	}
+
+	string txt_credits
+	{
+		tooltip		"_Organisation capital"
+		string		*cvar:mn_credits
+		pos			"780 32"
+		size		"130 30"
+		font		"f_big"
+		contentalign	ALIGN_UR
+	}
+
+	button bt_back_to_baseview
+	{
+		tooltip		"_Back to baseview"
+		background	"buttons/big_blue"
+		pos			"950 20"
+		size		"59 55"
+		icon		"icons/return"
+		onClick		{ cmd "ui_pop;" }
+	}
+
+}
+
+component cmpBaseHeader extends cmpDefBaseHeader
+{
+	{
+		pos "0 0"
+	}
+
+	textentry name
+	{
+		string		*cvar:mn_base_title
+		tooltip		"_Name of this base"
+		pos			"60 32"
+		size		"500 30"
+		font		"f_big"
+		onChange {
+			// stores the value of the cvar in the base structure
+			cmd	"base_changename"
+		}
+	}
+
+	zone wz_base
+	{
+		pos	"25 25"
+		size	"606 46"
+		onWheelUp	{ cmd "trans_emptyairstorage; ui_pop; mn_base_next;" }
+		onWheelDown	{ cmd "trans_emptyairstorage; ui_pop; mn_base_prev;" }
+	}
+
+	button bt_edit
+	{
+		tooltip	"_Rename your base"
+		icon	"icons/pen"
+		pos	"565 30"
+		size "35 35"
+		padding 0
+		onClick
+		{
+			call *node:parent.name@edit
+		}
+	}
+
+	button prev_base
+	{
+		tooltip	"_Switch to the previous base"
+		icon	"icons/prev"
+		pos		"30 30"
+		size	"30 30"
+		onClick	{ cmd "trans_emptyairstorage; ui_pop; mn_base_prev;" }
+		onWheelUp	{ cmd "trans_emptyairstorage; ui_pop; mn_base_next;" }
+		onWheelDown	{ cmd "trans_emptyairstorage; ui_pop; mn_base_prev;" }
+	}
+
+	button next_base
+	{
+		tooltip	"_Switch to the next base"
+		icon	"icons/next"
+		pos		"600 30"
+		size	"30 30"
+		onClick	{ cmd "trans_emptyairstorage; ui_pop; mn_base_next;" }
+		onWheelUp	{ cmd "trans_emptyairstorage; ui_pop; mn_base_next;" }
+		onWheelDown	{ cmd "trans_emptyairstorage; ui_pop; mn_base_prev;" }
+	}
+}
+
+
+/**
+ * button on popups
+ */
+component cmpPopupButton extends button
+{
+	color		"0 0.5 0 1"
+	selectcolor	"1 1 1 1"
+	font		"f_menu"
+	background		"ui/button_green_small"
+	size		"176 32"
+}
+
+/**
+ * Cancel button on popups
+ */
+component cmpCancelButton extends cmpPopupButton
+{
+	string		"_Cancel"
+	tooltip		"_Close this dialogue"
+}
+
+component cmpMapPanel extends panel
+{
+	{ }
+
+	// ===================
+	// PREVIEW
+	// ===================
+
+	string preview_label
+	{
+		string		"_Preview:"
+		pos			"10 0"
+		size		"256 20"
+	}
+
+	cmpMapImage mappic
+	{
+		src		*cvar:mn_mappic
+		pos			"20 30"
+	}
+	cmpMapImage mappic2
+	{
+		src		*cvar:mn_mappic2
+		pos			"155 30"
+	}
+	cmpMapImage mappic3
+	{
+		src		*cvar:mn_mappic3
+		pos			"290 30"
+	}
+
+	// ===================
+	// MAP
+	// ===================
+	string map_label
+	{
+		string		"_Map Name:"
+		pos			"10 155"
+		size		"220 20"
+	}
+	cmpMapSlot mapSlot
+	{
+		{
+			pos "140 150"
+		}
+	}
+
+	// =============================
+	// DAY/NIGHT STRING & SELECTBOX
+	// =============================
+	string daynight_str
+	{
+		string		"_Daytime Version:"
+		pos			"10 200"
+		size		"220 20"
+	}
+
+	selectbox daynight_box
+	{
+		{
+			tooltip		"_Select whether you want to play at day- or nighttime."
+			cvar		*cvar:mn_serverday
+			pos			"240 200"
+			size		"200 20"
+		}
+		option night
+		{
+			label	"_Night"
+			value	"0"
+		}
+		option day
+		{
+			label	"_Day"
+			value	"1"
+		}
+	}
+/*
+	radiobutton day_box {
+		pos		"240 200"
+		size	"64 64"
+		cvar	*cvar:mn_serverday
+		value	"1"
+		icon	"icons/daytime_day"
+	}
+
+	radiobutton night_box {
+		pos		"320 200"
+		size	"64 64"
+		cvar	*cvar:mn_serverday
+		value	"0"
+		icon	"icons/daytime_night"
+	}
+*/
+}
+
+component cmpTeamPanel extends panel
+{
+	{
+		pos			"0 50"
+		size		"420 550"
+	}
+	// ================
+	// save team slots
+	// ================
+
+	/**
+	 * @param[in] <1> id of the slot
+	 * @param[in] <2> amount of soldiers in the savegame
+	 * @param[in] <3> name of the savegame
+	 */
+	confunc set_slotname {
+		*cvar:mn_slot<1> = "<3> (<2>)"
+		*node:this.parent.slot_team<1>@disabled = false
+	}
+
+	button slot_team0
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 100"
+		size		"200 34"
+		string		*cvar:mn_slot0
+		onClick		{ cmd "game_loadteam 0;ui_push game_team_edit;" }
+	}
+
+	button slot_team1
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 135"
+		size		"200 34"
+		string		*cvar:mn_slot1
+		onClick		{ cmd "game_loadteam 1;ui_push game_team_edit;" }
+	}
+
+	button slot_team2
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 170"
+		size		"200 34"
+		string		*cvar:mn_slot2
+		onClick		{ cmd "game_loadteam 2;ui_push game_team_edit;" }
+	}
+
+	button slot_team3
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 205"
+		size		"200 34"
+		string		*cvar:mn_slot3
+		onClick		{ cmd "game_loadteam 3;ui_push game_team_edit;" }
+	}
+
+	button slot_team4
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 240"
+		size		"200 34"
+		string		*cvar:mn_slot4
+		onClick		{ cmd "game_loadteam 4;ui_push game_team_edit;" }
+	}
+
+	button slot_team5
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"0 275"
+		size		"200 34"
+		string		*cvar:mn_slot5
+		onClick		{ cmd "game_loadteam 5;ui_push game_team_edit;" }
+	}
+
+	// Second row
+
+	button slot_team6
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 100"
+		size		"200 34"
+		string		*cvar:mn_slot6
+		onClick		{ cmd "game_loadteam 6;ui_push game_team_edit;" }
+	}
+
+	button slot_team7
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 135"
+		size		"200 34"
+		string		*cvar:mn_slot7
+		onClick		{ cmd "game_loadteam 7;ui_push game_team_edit;" }
+	}
+
+	button slot_team8
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 170"
+		size		"200 34"
+		string		*cvar:mn_slot8
+		onClick		{ cmd "game_loadteam 8;ui_push game_team_edit;" }
+	}
+
+	button slot_team9
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 205"
+		size		"200 34"
+		string		*cvar:mn_slot9
+		onClick		{ cmd "game_loadteam 9;ui_push game_team_edit;" }
+	}
+
+	button slot_team10
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 240"
+		size		"200 34"
+		string		*cvar:mn_slot10
+		onClick		{ cmd "game_loadteam 10;ui_push game_team_edit;" }
+	}
+
+	button slot_team11
+	{
+		background		"ui/button_green_verysmall"
+		color		"0 .78 0 1"
+		selectcolor	"1 1 1 1"
+		contentalign	ALIGN_CC
+		padding		8
+		font		"f_verysmall"
+		disabled	true
+		pos			"240 275"
+		size		"200 34"
+		string		*cvar:mn_slot11
+		onClick		{ cmd "game_loadteam 11;ui_push game_team_edit;" }
+	}
+
+	// ==================
+	// current team
+	// ==================
+
+	button button_new
+	{
+		pos	"0 40"
+		size "200 40"
+		tooltip	"_Generate a new random team"
+		onClick	{ cmd "game_autoteam multiplayer_initial;ui_push game_team_edit;" }
+		background	"ui/button_green_small"
+		font	"f_menusmall"
+		color	"0 0.5 0 1"
+		selectcolor "1 1 1 1"
+		string	"_New"
+	}
+
+	button button_save
+	{
+		pos	"240 40"
+		size "200 40"
+		tooltip	"_Save the current team"
+		onClick	{ cmd "ui_push game_team_save_popup;" }
+		background	"ui/button_green_small"
+		font	"f_menusmall"
+		color	"0 0.5 0 1"
+		selectcolor "1 1 1 1"
+		string	"_Save"
+	}
+
+	string team_str
+	{
+		string	"_Team:"
+		pos			"10 0"
+		size		"200 20"
+		tooltip		"_Select which side you want to play with."
+	}
+
+	selectbox team_box
+	{
+		pos		"240 0"
+		size	"200 20"
+		color	"0.6 0.6 0.6 0.3"
+		cvar	*cvar:cl_teamdef
+		dataid	OPTION_TEAMDEFS
+	}
+}
+
+component checkbox_blue extends checkbox
+{
+	iconChecked      "icons/checkbox_blue_checked"
+	iconUnchecked    "icons/checkbox_blue_unchecked"
+	iconIndeterminate "icons/checkbox_blue_indeterminate"
+	size "22 22"
+}
+
+component checkbox_green extends checkbox
+{
+	iconChecked      "icons/checkbox_green_checked"
+	iconUnchecked    "icons/checkbox_green_unchecked"
+	iconIndeterminate "icons/checkbox_green_indeterminate"
+	size "20 20"
+}
+
+component spinner_blue extends spinner
+{
+	topIcon	"ui/spinner_blue_up"
+	bottomIcon	"ui/spinner_blue_down"
+	size "15 19"
+}
+
+component spinner_horiz extends spinner
+{
+	topIcon		"buttons/blue_right"
+	bottomIcon	"buttons/blue_left"
+	size		"80 50"
+	horizontal	true
+}

@@ -1,0 +1,176 @@
+// ==================
+// AIRCRAFT PILOTS MENU
+// ==================
+
+window aircraft_pilots extends iaircraft
+{
+	// ==================
+	// background
+	// ==================
+
+	panel actors_background {
+		pos		"18 443"
+		size	"329 321"
+		background	"ui/panel_grey_green_large"
+	}
+
+	panel actormodel_background {
+		pos		"358 443"
+		size	"205 321"
+		background	"ui/panel_grey_green_large"
+	}
+
+	panel actorstats_background {
+		pos		"564 443"
+		size	"458 321"
+		background	"ui/panel_grey_green_large"
+	}
+
+	// ==================
+	// aircraft
+	// ==================
+
+	model aircraft
+	{
+		src			*cvar:mn_aircraft_model
+		pos			"478 106"
+		size		"529 261"
+		origin		"-45 25 0"
+		angles		"160 20 -120"
+		autoscale	true
+	}
+
+	image aircraft_slot
+	{
+		src	"ui/button_square"
+		pos		"494 120"
+		size	"64 64"
+		texh	"64 64"
+	}
+
+	model assigned_pilot_body
+	{
+		{
+			src		*cvar:mn_pilot_body
+			skin	*cvar:mn_pilot_body_skin
+			anim	"stand_still"
+			angles	"0 90 90"
+			scale	"5.5 5.5 5.5"
+			pos		"495 121"
+			size	"62 62"
+			origin	"0 70 0"
+		}
+
+		model assigned_pilot_head
+		{
+			src		*cvar:mn_pilot_head
+			skin	*cvar:mn_pilot_head_skin
+			tag		"tag_head"
+		}
+	}
+
+	string assigned_pilot_name
+	{
+		string		*cvar:mn_pilot_name
+		pos			"480 185"
+		size		"200 20"
+		contentalign	ALIGN_UL
+	}
+
+	// ==================
+	// pilot selected
+	// ==================
+
+	image	rank_img {
+		pos "378 463"
+		size "50 50"
+		src *cvar:mn_chrrank_img
+	}
+
+	model body
+	{
+		{
+			src		*cvar:mn_body
+			skin	*cvar:mn_body_skin
+			anim	"stand2"
+			angles	"0 70 90"
+			scale	"5.5 5.5 5.5"
+			pos		"377 463"
+			size	"168 283"
+			origin	"0 -35 0"
+		}
+
+		model head
+		{
+			src		*cvar:mn_head
+			skin	*cvar:mn_head_skin
+			tag		"tag_head"
+			scale	"1.0 1.0 1.0"
+		}
+	}
+
+	// ==================
+	// pilot list
+	// ==================
+
+	data selected {
+	}
+
+	rows soldierlist_lines {
+		pos			"35 460"
+		size		"270 283"
+		color1		"0 0.08 0 1"
+		color2		"0 0.16 0 1"
+		lineheight	50
+	}
+	panel soldierlist {
+		pos			"35 460"
+		size		"270 283"
+		padding		6
+		layout		LAYOUT_TOP_DOWN_FLOW
+		wheelscrollable	true
+
+		onViewChange {
+			*node:parent.soldierlist_scroll@fullsize = <fullsize>
+			*node:parent.soldierlist_scroll@current = <viewpos>
+			*node:parent.soldierlist_scroll@viewsize = <viewsize>
+		}
+	}
+	vscrollbar soldierlist_scroll {
+		image		"ui/scrollbar_v_green"
+		pos			"310 462"
+		height		"283"
+		current		0
+		viewsize	8
+		fullsize	50
+
+		onChange {
+			*node:parent.soldierlist@viewpos = <current>
+		}
+	}
+
+	// ==================
+	// additional stuff
+	// ==================
+
+	/**
+	 * @note iaircraft interface
+	 */
+	confunc aircraft_change	{
+		cmd "ui_team_fill pilot;"
+		if ( *node:root.selected@integer >= 0 ) {
+			cmd "aircraft_soldierlist_select <node:root.selected@integer>;"
+		}
+		*node:root.aircraft_list@lineselected = <1>
+		// absent from base, go back to the main GUI
+		if ( *cvar:mn_equipsoldierstate == 1 ) {
+			cmd "ui_pop;ui_push aircraft;"
+		}
+	}
+
+	func onWindowOpened
+	{
+		*node:root.selected@integer = -1
+		cmd "mn_select_aircraft <cvar:mn_aircraft_id>;"
+	}
+}
